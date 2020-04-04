@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+env:
+  UNITTEST_SHUFFLE: 1
+  UNITTEST_RANDOM_SEED: random
+  UNITTEST_THREADS: 1
+  UNITTEST_XML: 1
+  UNITTEST_PROGRESS: 1
+
+jobs:
+  check-linux:
+    strategy:
+      matrix:
+        buildType: [Debug, Release]
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get install -y \
+            libprocps-dev
+
+    - name: Create build folder
+      run: mkdir build
+
+    - name: Build
+      working-directory: ./build
+      run: |
+        cmake .. -DCMAKE_BUILD_TYPE=${{matrix.buildType}} -DREALM_MAX_BPNODE_SIZE=1000
+        cmake --build . --parallel
+    
+    - name: Test
+      working-directory: ./build
+      run: ctest
+
+  check-macos:
+    strategy:
+      matrix:
+        buildType: [Debug, Release]
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+      
+    - uses: sinoru/actions-setup-xcode@v1.1.1
+      with:
+        xcode-version: 11.4
+
+    - name: Create build folder
+      run: mkdir build
+
+    - name: Build
+      working-directory: ./build
+      run: |
+        cmake .. -GXcode -DCMAKE_TOOLCHAIN_FILE=../tools/cmake/macosx.toolchain.cmake -DCMAKE_BUILD_TYPE=${{matrix.buildType}} -DREALM_MAX_BPNODE_SIZE=1000
+        cmake --build .
+    
+    - name: Test
+      working-directory: ./build
+      run: ctest
+
+  check-windows:
+    strategy:
+      matrix:
+        buildType: [Debug, Release]
+        platform: [Win32, x64, ARM, ARM64]
+        system:
+          - { name: Windows, version: "8.1" }
+          - { name: WindowsStore, version: "10.0" }
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+
+    - name: Create build folder
+      run: mkdir build
+
+    - name: Build
+      working-directory: ./build
+      run: |
+        cmake .. -A ${{matrix.platform}} -DCMAKE_SYSTEM_NAME=${{matrix.system.name}} -DCMAKE_SYSTEM_VERSION="${{matrix.system.version}}" -DCMAKE_BUILD_TYPE=${{matrix.buildType}} -DREALM_MAX_BPNODE_SIZE=1000
+        cmake --build .
+    
+    - name: Test
+      if: matrix.system.name == 'Windows' && !startsWith(matrix.platform, 'ARM')
+      working-directory: ./build
+      run: ctest  
