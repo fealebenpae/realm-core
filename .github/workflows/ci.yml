@@ -36,11 +36,11 @@ jobs:
       working-directory: ./build
       run: |
         cmake .. -DCMAKE_BUILD_TYPE=${{matrix.buildType}} -DREALM_MAX_BPNODE_SIZE=1000
-        cmake --build . --parallel
+        cmake --build . --parallel --config ${{matrix.buildType}}
     
     - name: Test
-      working-directory: ./build
-      run: ctest
+      working-directory: ./build/test
+      run: ./realm-tests
 
   check-macos:
     strategy:
@@ -64,11 +64,11 @@ jobs:
       working-directory: ./build
       run: |
         cmake .. -GXcode -DCMAKE_TOOLCHAIN_FILE=../tools/cmake/macosx.toolchain.cmake -DCMAKE_BUILD_TYPE=${{matrix.buildType}} -DREALM_MAX_BPNODE_SIZE=1000
-        cmake --build .
+        cmake --build . --config ${{matrix.buildType}}
     
     - name: Test
-      working-directory: ./build
-      run: ctest
+      working-directory: ./build/test
+      run: ./${{matrix.buildType}}/realm-tests
 
   check-windows:
     strategy:
@@ -92,9 +92,9 @@ jobs:
       working-directory: ./build
       run: |
         cmake .. -A ${{matrix.platform}} -DCMAKE_SYSTEM_NAME=${{matrix.system.name}} -DCMAKE_SYSTEM_VERSION="${{matrix.system.version}}" -DCMAKE_BUILD_TYPE=${{matrix.buildType}} -DREALM_MAX_BPNODE_SIZE=1000
-        cmake --build .
+        cmake --build . --config ${{matrix.buildType}}
     
     - name: Test
       if: matrix.system.name == 'Windows' && !startsWith(matrix.platform, 'ARM')
-      working-directory: ./build
-      run: ctest  
+      working-directory: ./build/test
+      run: .\${{matrix.buildType}}\realm-tests.exe  
