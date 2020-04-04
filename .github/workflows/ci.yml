@@ -15,6 +15,7 @@ env:
 jobs:
   check-linux:
     strategy:
+      fail-fast: false
       matrix:
         buildType: [Debug, Release]
     runs-on: ubuntu-latest
@@ -44,6 +45,7 @@ jobs:
 
   check-macos:
     strategy:
+      fail-fast: false
       matrix:
         buildType: [Debug, Release]
     runs-on: macos-latest
@@ -72,6 +74,7 @@ jobs:
 
   check-windows:
     strategy:
+      fail-fast: false
       matrix:
         buildType: [Debug, Release]
         platform: [Win32, x64, ARM, ARM64]
