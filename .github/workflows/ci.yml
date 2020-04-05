@@ -13,6 +13,50 @@ env:
   UNITTEST_PROGRESS: 1
 
 jobs:
+  Sanitizer:
+    strategy:
+      fail-fast: false
+      matrix:
+        buildType: [Debug, Release]
+        os: [Ubuntu, macOS]
+        sanitizer: [address, thread]
+    runs-on: ${{matrix.os}}-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+
+    - name: Set up Clang 9
+      if: runner.os == 'Linux'
+      run: |
+        sudo update-alternatives --install /usr/bin/cc cc /usr/bin/clang-9 100
+        sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-9 100
+
+    - name: Install dependencies
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get install -y \
+            libprocps-dev
+
+    - name: Create build folder
+      run: mkdir build
+
+    - name: Build
+      working-directory: ./build
+      run: |
+        cmake .. -DCMAKE_BUILD_TYPE=${{matrix.buildType}} -DREALM_MAX_BPNODE_SIZE=1000 \
+                 -DREALM_ASAN=${{matrix.sanitizer == 'address'}} \
+                 -DREALM_TSAN=${{matrix.sanitizer == 'thread'}} \
+                 -DREALM_USAN=${{matrix.sanitizer == 'undefined'}} \
+                 -DREALM_MSAN=${{matrix.sanitizer == 'memory'}} \
+                 -DREALM_SKIP_SHARED_LIB=ON
+        cmake --build . --parallel --config ${{matrix.buildType}}
+    
+    - name: Test
+      working-directory: ./build/test
+      run: ./realm-tests
+
   Linux:
     strategy:
       fail-fast: false
