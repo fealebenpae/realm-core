@@ -62,12 +62,19 @@ jobs:
       fail-fast: false
       matrix:
         buildType: [Debug, Release]
+        compiler: [gcc, clang]
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v2
       with:
         submodules: recursive
+
+    - name: Set up Clang 9
+      if: matrix.compiler == 'clang'
+      run: |
+        sudo update-alternatives --install /usr/bin/cc cc /usr/bin/clang-9 100
+        sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-9 100
 
     - name: Install dependencies
       run: |
