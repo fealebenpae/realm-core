@@ -87,7 +87,7 @@ jobs:
     - name: Build
       working-directory: ./build
       run: |
-        cmake .. -DCMAKE_BUILD_TYPE=${{matrix.buildType}} -DREALM_MAX_BPNODE_SIZE=1000
+        cmake .. -DCMAKE_BUILD_TYPE=${{matrix.buildType}}
         cmake --build . --parallel --config ${{matrix.buildType}}
     
     - name: Test
@@ -112,7 +112,8 @@ jobs:
     - name: Build
       working-directory: ./build
       run: |
-        cmake .. -DCMAKE_TOOLCHAIN_FILE=../tools/cmake/macosx.toolchain.cmake -DCMAKE_BUILD_TYPE=${{matrix.buildType}} -DREALM_MAX_BPNODE_SIZE=1000
+        cmake .. -DCMAKE_TOOLCHAIN_FILE=../tools/cmake/macosx.toolchain.cmake \
+                 -DCMAKE_BUILD_TYPE=${{matrix.buildType}}
         cmake --build . --config ${{matrix.buildType}} --parallel
     
     - name: Test
@@ -141,10 +142,55 @@ jobs:
     - name: Build
       working-directory: ./build
       run: |
-        cmake .. -A ${{matrix.platform}} -T host=x86 -DCMAKE_SYSTEM_NAME=${{matrix.system.name}} -DCMAKE_SYSTEM_VERSION="${{matrix.system.version}}" -DCMAKE_BUILD_TYPE=${{matrix.buildType}} -DREALM_MAX_BPNODE_SIZE=1000
+        cmake .. -A ${{matrix.platform}} -T host=x86 `
+                 -DCMAKE_BUILD_TYPE=${{matrix.buildType}} `
+                 -DCMAKE_SYSTEM_NAME=${{matrix.system.name}} `
+                 -DCMAKE_SYSTEM_VERSION="${{matrix.system.version}}"
         cmake --build . --config ${{matrix.buildType}}
     
     - name: Test
       if: matrix.system.name == 'Windows' && !startsWith(matrix.platform, 'ARM')
       working-directory: ./build/test/${{matrix.buildType}}
-      run: .\realm-tests.exe  
+      run: .\realm-tests.exe
+
+  Android:
+    strategy:
+      fail-fast: false
+      matrix:
+        buildType: [Debug, Release]
+        abi: [armeabi-v7a, x86, x86_64, arm64-v8a]
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+
+    - name: Create build folder
+      run: mkdir build
+
+    - name: Build
+      working-directory: ./build
+      run: |
+        cmake .. -D CMAKE_TOOLCHAIN_FILE="${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake" \
+                 -D CMAKE_INSTALL_PREFIX=install \
+                 -D CMAKE_BUILD_TYPE="${{matrix.buildType}}" \
+                 -D ANDROID_ABI="${{matrix.abi}}" \
+                 -D REALM_ENABLE_ENCRYPTION=1 \
+                 -D CPACK_SYSTEM_NAME="Android-${{matrix.abi}}"
+        cmake --build . --config ${{matrix.buildType}} --parallel
+    
+    - name: Test
+      uses: reactivecircus/android-emulator-runner@v2
+      if: startsWith(matrix.abi, 'x86')
+      with:
+        arch: ${{matrix.abi}}
+        api-level: 21
+        script: |
+          adb shell 'rm -f /data/local/tmp/unit-test-report.xml'
+          adb push build/test/realm-tests /data/local/tmp
+          find build/test -type f -name "*.json" -maxdepth 1 -exec adb push {} /data/local/tmp \;
+          find build/test -type f -name "*.realm" -maxdepth 1 -exec adb push {} /data/local/tmp \;
+          find build/test -type f -name "*.txt" -maxdepth 1 -exec adb push {} /data/local/tmp \;
+          adb shell 'cd /data/local/tmp; UNITTEST_PROGRESS=1 ./realm-tests'
+          adb pull /data/local/tmp/unit-test-report.xml
