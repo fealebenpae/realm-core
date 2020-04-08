@@ -192,5 +192,5 @@ jobs:
           find build/test -type f -name "*.json" -maxdepth 1 -exec adb push {} /data/local/tmp \;
           find build/test -type f -name "*.realm" -maxdepth 1 -exec adb push {} /data/local/tmp \;
           find build/test -type f -name "*.txt" -maxdepth 1 -exec adb push {} /data/local/tmp \;
-          adb shell 'cd /data/local/tmp; UNITTEST_PROGRESS=1 ./realm-tests'
+          adb shell 'cd /data/local/tmp; UNITTEST_PROGRESS=1 GITHUB_ACTIONS=1 ./realm-tests'
           adb pull /data/local/tmp/unit-test-report.xml

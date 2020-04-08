@@ -42,6 +42,7 @@
 #include <realm/version.hpp>
 #include <realm/disable_sync_to_disk.hpp>
 
+#include "util/misc.hpp"
 #include "util/timer.hpp"
 #include "util/resource_limits.hpp"
 
@@ -381,6 +382,19 @@ private:
     std::vector<result> m_results;
 };
 
+class GitHubReporter : public Reporter {
+public:
+    void fail(const TestContext&, const char* file_name, long line_number, const std::string& message) override {
+        auto escape = [](std::string str) -> std::string {
+            replace_all(str, "\r", "%0D");
+            replace_all(str, "\n", "%0A");
+            replace_all(str, "]", "%5D");
+            replace_all(str, ";", "%3B");
+            return str;
+        };
+        std::cout << util::format("::error file=%1,line=%2::%3", file_name, line_number, escape(message)) << std::endl;
+    }
+};
 
 void put_time(std::ostream& out, const std::tm& tm, const char* format)
 {
@@ -461,6 +475,16 @@ bool run_tests(util::Logger* logger)
         std::unique_ptr<Reporter> reporter_2 = create_twofold_reporter(*reporters.back(), *reporter_1);
         reporters.push_back(std::move(reporter_1));
         reporters.push_back(std::move(reporter_2));
+    }
+    {
+        const char* str = getenv("GITHUB_ACTIONS");
+        bool github_annotation_reporter = str && strlen(str) != 0;
+        if (github_annotation_reporter) {
+            std::unique_ptr<Reporter> reporter_1 = std::make_unique<GitHubReporter>();
+            std::unique_ptr<Reporter> reporter_2 = create_twofold_reporter(*reporters.back(), *reporter_1);
+            reporters.push_back(std::move(reporter_1));
+            reporters.push_back(std::move(reporter_2));
+        }
     }
     config.reporter = reporters.back().get();
 
