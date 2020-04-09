@@ -114,6 +114,7 @@ jobs:
     strategy:
       matrix:
         buildType: [Debug, Release]
+        system: [macosx, maccatalyst]
     runs-on: macos-latest
 
     steps:
@@ -128,7 +129,7 @@ jobs:
       working-directory: ./build
       shell: bash
       run: |
-        cmake .. -DCMAKE_TOOLCHAIN_FILE=../tools/cmake/macosx.toolchain.cmake \
+        cmake .. -DCMAKE_TOOLCHAIN_FILE=../tools/cmake/${{matrix.system}}.toolchain.cmake \
                  -DCMAKE_BUILD_TYPE=${{matrix.buildType}}
         cmake --build . --config ${{matrix.buildType}} --parallel 2>&1 | tee build.log
 
@@ -231,3 +232,35 @@ jobs:
           find build/test -type f -name "*.txt" -maxdepth 1 -exec adb push {} /data/local/tmp \;
           adb shell 'cd /data/local/tmp; UNITTEST_PROGRESS=1 GITHUB_ACTIONS=1 ./realm-tests'
           adb pull /data/local/tmp/unit-test-report.xml
+
+  AppleDevice:
+    strategy:
+      matrix:
+        buildType: [Debug, Release]
+        system: [iOS]
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+
+    - name: Create build folder
+      run: mkdir build
+
+    - name: Build
+      working-directory: ./build
+      shell: bash
+      run: |
+        cmake .. -DCMAKE_TOOLCHAIN_FILE=../tools/cmake/${{matrix.system}}.toolchain.cmake \
+                 -DCMAKE_BUILD_TYPE=${{matrix.buildType}} \
+                 -GXcode
+        cmake --build . --config ${{matrix.buildType}} 2>&1 | tee build.log
+        cpack
+
+    - name: Scan build log
+      if: always()
+      uses: ./.github/actions/parse-tool-output
+      with:
+        log-file-path: ./build/build.log
+        tool: clang
