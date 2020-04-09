@@ -16,9 +16,9 @@ jobs:
   Sanitizer:
     strategy:
       matrix:
-        buildType: [Debug, Release]
-        os: [Ubuntu, macOS]
         sanitizer: [address, thread]
+        os: [Ubuntu, macOS]
+        buildType: [Debug, Release]
     runs-on: ${{matrix.os}}-latest
 
     steps:
@@ -67,8 +67,8 @@ jobs:
   Linux:
     strategy:
       matrix:
-        buildType: [Debug, Release]
         compiler: [gcc, clang]
+        buildType: [Debug, Release]
     runs-on: ubuntu-latest
 
     steps:
@@ -113,8 +113,8 @@ jobs:
   macOS:
     strategy:
       matrix:
+        system: [osx, catalyst]
         buildType: [Debug, Release]
-        system: [macosx, maccatalyst]
     runs-on: macos-latest
 
     steps:
@@ -129,7 +129,7 @@ jobs:
       working-directory: ./build
       shell: bash
       run: |
-        cmake .. -DCMAKE_TOOLCHAIN_FILE=../tools/cmake/${{matrix.system}}.toolchain.cmake \
+        cmake .. -DCMAKE_TOOLCHAIN_FILE=../tools/cmake/mac${{matrix.system}}.toolchain.cmake \
                  -DCMAKE_BUILD_TYPE=${{matrix.buildType}}
         cmake --build . --config ${{matrix.buildType}} --parallel 2>&1 | tee build.log
 
@@ -147,11 +147,11 @@ jobs:
   Windows:
     strategy:
       matrix:
-        buildType: [Debug, Release]
         platform: [Win32, x64, ARM, ARM64]
         system:
           - { name: Windows, version: "8.1" }
           - { name: WindowsStore, version: "10.0" }
+        buildType: [Debug, Release]
     runs-on: windows-latest
 
     steps:
@@ -187,8 +187,8 @@ jobs:
   Android:
     strategy:
       matrix:
-        buildType: [Debug, Release]
         abi: [armeabi-v7a, x86, x86_64, arm64-v8a]
+        buildType: [Debug, Release]
     runs-on: ubuntu-latest
 
     steps:
@@ -236,8 +236,8 @@ jobs:
   AppleDevice:
     strategy:
       matrix:
-        buildType: [Debug, Release]
         system: [iOS]
+        buildType: [Debug, Release]
     runs-on: macos-latest
 
     steps:
