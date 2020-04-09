@@ -3,6 +3,7 @@ include("${CMAKE_CURRENT_LIST_DIR}/Utilities.cmake")
 check_generator("Xcode")
 
 set_common_xcode_attributes()
+set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 
 set(REALM_SKIP_SHARED_LIB ON)
 set(REALM_BUILD_LIB_ONLY ON)
