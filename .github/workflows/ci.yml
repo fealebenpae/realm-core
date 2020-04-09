@@ -43,6 +43,7 @@ jobs:
 
     - name: Build
       working-directory: ./build
+      shell: bash
       run: |
         cmake .. -DCMAKE_BUILD_TYPE=${{matrix.buildType}} -DREALM_MAX_BPNODE_SIZE=1000 \
                  -DREALM_ASAN=${{matrix.sanitizer == 'address'}} \
@@ -50,8 +51,15 @@ jobs:
                  -DREALM_USAN=${{matrix.sanitizer == 'undefined'}} \
                  -DREALM_MSAN=${{matrix.sanitizer == 'memory'}} \
                  -DREALM_SKIP_SHARED_LIB=ON
-        cmake --build . --parallel --config ${{matrix.buildType}}
-    
+        cmake --build . --parallel --config ${{matrix.buildType}} 2>&1 | tee build.log
+
+    - name: Scan build log
+      if: always()
+      uses: ./.github/actions/parse-tool-output
+      with:
+        log-file-path: ./build/build.log
+        tool: clang
+
     - name: Test
       working-directory: ./build/test
       run: ./realm-tests
@@ -82,12 +90,22 @@ jobs:
     - name: Create build folder
       run: mkdir build
 
+    - run: env
+
     - name: Build
       working-directory: ./build
+      shell: bash
       run: |
         cmake .. -DCMAKE_BUILD_TYPE=${{matrix.buildType}}
-        cmake --build . --parallel --config ${{matrix.buildType}}
-    
+        cmake --build . --parallel --config ${{matrix.buildType}} 2>&1 | tee build.log
+
+    - name: Scan build log
+      if: always()
+      uses: ./.github/actions/parse-tool-output
+      with:
+        log-file-path: ./build/build.log
+        tool: ${{matrix.compiler}}
+
     - name: Test
       working-directory: ./build/test
       run: ./realm-tests
@@ -108,11 +126,19 @@ jobs:
 
     - name: Build
       working-directory: ./build
+      shell: bash
       run: |
         cmake .. -DCMAKE_TOOLCHAIN_FILE=../tools/cmake/macosx.toolchain.cmake \
                  -DCMAKE_BUILD_TYPE=${{matrix.buildType}}
-        cmake --build . --config ${{matrix.buildType}} --parallel
-    
+        cmake --build . --config ${{matrix.buildType}} --parallel 2>&1 | tee build.log
+
+    - name: Scan build log
+      if: always()
+      uses: ./.github/actions/parse-tool-output
+      with:
+        log-file-path: ./build/build.log
+        tool: clang
+
     - name: Test
       working-directory: ./build/test
       run: ./realm-tests
@@ -137,13 +163,21 @@ jobs:
 
     - name: Build
       working-directory: ./build
+      shell: bash
       run: |
-        cmake .. -A ${{matrix.platform}} `
-                 -DCMAKE_BUILD_TYPE=${{matrix.buildType}} `
-                 -DCMAKE_SYSTEM_NAME=${{matrix.system.name}} `
+        cmake .. -A ${{matrix.platform}} \
+                 -DCMAKE_BUILD_TYPE=${{matrix.buildType}} \
+                 -DCMAKE_SYSTEM_NAME=${{matrix.system.name}} \
                  -DCMAKE_SYSTEM_VERSION="${{matrix.system.version}}"
-        cmake --build . --config ${{matrix.buildType}}
-    
+        cmake --build . --config ${{matrix.buildType}} 2>&1 | tee build.log
+
+    - name: Scan build log
+      if: always()
+      uses: ./.github/actions/parse-tool-output
+      with:
+        log-file-path: ./build/build.log
+        tool: msvc
+
     - name: Test
       if: matrix.system.name == 'Windows' && !startsWith(matrix.platform, 'ARM')
       working-directory: ./build/test/${{matrix.buildType}}
@@ -166,6 +200,7 @@ jobs:
 
     - name: Build
       working-directory: ./build
+      shell: bash
       run: |
         cmake .. -D CMAKE_TOOLCHAIN_FILE="${ANDROID_SDK_ROOT}/ndk-bundle/build/cmake/android.toolchain.cmake" \
                  -D CMAKE_INSTALL_PREFIX=install \
@@ -173,8 +208,15 @@ jobs:
                  -D ANDROID_ABI="${{matrix.abi}}" \
                  -D REALM_ENABLE_ENCRYPTION=1 \
                  -D CPACK_SYSTEM_NAME="Android-${{matrix.abi}}"
-        cmake --build . --config ${{matrix.buildType}} --parallel
-    
+        cmake --build . --config ${{matrix.buildType}} --parallel 2>&1 | tee build.log
+
+    - name: Scan build log
+      if: always()
+      uses: ./.github/actions/parse-tool-output
+      with:
+        log-file-path: ./build/build.log
+        tool: clang
+
     - name: Test
       uses: reactivecircus/android-emulator-runner@v2
       if: startsWith(matrix.abi, 'x86')

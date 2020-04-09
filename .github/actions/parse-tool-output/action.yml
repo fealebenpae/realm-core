@@ -1,0 +1,12 @@
+name: 'Parse tool output'
+description: 'Parse tool output and emit diagnostic annotations'
+inputs:
+  tool:
+    description: 'The tool producing the output'
+    required: true
+  log-file-path:
+    description: 'The path of the log file to parse'
+    required: true
+runs:
+  using: 'node12'
+  main: 'index.js'
