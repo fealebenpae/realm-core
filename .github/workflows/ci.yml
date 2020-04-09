@@ -138,7 +138,7 @@ jobs:
     - name: Build
       working-directory: ./build
       run: |
-        cmake .. -A ${{matrix.platform}} -T host=x86 `
+        cmake .. -A ${{matrix.platform}} `
                  -DCMAKE_BUILD_TYPE=${{matrix.buildType}} `
                  -DCMAKE_SYSTEM_NAME=${{matrix.system.name}} `
                  -DCMAKE_SYSTEM_VERSION="${{matrix.system.version}}"
