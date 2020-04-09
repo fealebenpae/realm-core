@@ -154,7 +154,7 @@ jobs:
       matrix:
         buildType: [Debug, Release]
         abi: [armeabi-v7a, x86, x86_64, arm64-v8a]
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v2
@@ -167,7 +167,7 @@ jobs:
     - name: Build
       working-directory: ./build
       run: |
-        cmake .. -D CMAKE_TOOLCHAIN_FILE="${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake" \
+        cmake .. -D CMAKE_TOOLCHAIN_FILE="${ANDROID_SDK_ROOT}/ndk-bundle/build/cmake/android.toolchain.cmake" \
                  -D CMAKE_INSTALL_PREFIX=install \
                  -D CMAKE_BUILD_TYPE="${{matrix.buildType}}" \
                  -D ANDROID_ABI="${{matrix.abi}}" \
