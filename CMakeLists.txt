@@ -10,15 +10,19 @@ list(APPEND CMAKE_MODULE_PATH "${RealmCore_SOURCE_DIR}/tools/cmake")
 # Include general CMake modules
 include(GNUInstallDirs)
 include(CheckIncludeFiles)
-include(GetGitRevisionDescription)
 include(Utilities)
 include(SpecialtyBuilds)
 include(GetVersion)
 include(CheckCXXCompilerFlag)
 include(CheckCXXSourceRuns)
 
-# Get accurate git-describe version
-git_describe(REALM_VERSION)
+if(DEFINED ENV{GITHUB_ACTIONS})
+    set(REALM_VERSION "${CONFIG_VERSION}")
+else()
+    # Get accurate git-describe version
+    include(GetGitRevisionDescription)
+    git_describe(REALM_VERSION)
+endif()
 
 # Project-wide build flags
 set(CMAKE_CXX_STANDARD 14)

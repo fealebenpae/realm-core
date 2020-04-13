@@ -49,8 +49,7 @@ jobs:
                  -DREALM_ASAN=${{matrix.sanitizer == 'address'}} \
                  -DREALM_TSAN=${{matrix.sanitizer == 'thread'}} \
                  -DREALM_USAN=${{matrix.sanitizer == 'undefined'}} \
-                 -DREALM_MSAN=${{matrix.sanitizer == 'memory'}} \
-                 -DREALM_SKIP_SHARED_LIB=ON
+                 -DREALM_MSAN=${{matrix.sanitizer == 'memory'}}
         cmake --build . --parallel --config ${{matrix.buildType}} 2>&1 | tee build.log
 
     - name: Scan build log
@@ -90,14 +89,13 @@ jobs:
     - name: Create build folder
       run: mkdir build
 
-    - run: env
-
     - name: Build
       working-directory: ./build
       shell: bash
       run: |
         cmake .. -DCMAKE_BUILD_TYPE=${{matrix.buildType}}
-        cmake --build . --parallel --config ${{matrix.buildType}} 2>&1 | tee build.log
+        cmake --build . --config ${{matrix.buildType}} --parallel 2>&1 | tee build.log
+        cpack -C ${{matrix.buildType}}
 
     - name: Scan build log
       if: always()
@@ -109,6 +107,13 @@ jobs:
     - name: Test
       working-directory: ./build/test
       run: ./realm-tests
+
+    - name: Upload packages
+      uses: actions/upload-artifact@v2-preview
+      if: matrix.compiler == 'gcc'
+      with:
+        name: Linux
+        path: build/realm-core-*.tar.gz      
 
   macOS:
     strategy:
@@ -130,8 +135,10 @@ jobs:
       shell: bash
       run: |
         cmake .. -DCMAKE_TOOLCHAIN_FILE=../tools/cmake/mac${{matrix.system}}.toolchain.cmake \
-                 -DCMAKE_BUILD_TYPE=${{matrix.buildType}}
+                 -DCMAKE_BUILD_TYPE=${{matrix.buildType}} \
+                 -DREALM_BUILD_LIB_ONLY=${{matrix.system == 'catalyst'}}
         cmake --build . --config ${{matrix.buildType}} --parallel 2>&1 | tee build.log
+        cpack -C ${{matrix.buildType}}
 
     - name: Scan build log
       if: always()
@@ -141,8 +148,15 @@ jobs:
         tool: clang
 
     - name: Test
+      if: matrix.system == 'osx'
       working-directory: ./build/test
       run: ./realm-tests
+
+    - name: Upload packages
+      uses: actions/upload-artifact@v2-preview
+      with:
+        name: macOS
+        path: build/realm-core-*.tar.gz
 
   Windows:
     strategy:
@@ -169,8 +183,11 @@ jobs:
         cmake .. -A ${{matrix.platform}} \
                  -DCMAKE_BUILD_TYPE=${{matrix.buildType}} \
                  -DCMAKE_SYSTEM_NAME=${{matrix.system.name}} \
-                 -DCMAKE_SYSTEM_VERSION="${{matrix.system.version}}"
+                 -DCMAKE_SYSTEM_VERSION="${{matrix.system.version}}" \
+                 -DCPACK_SYSTEM_NAME="${{matrix.system.name}}-${{matrix.platform}}"
         cmake --build . --config ${{matrix.buildType}} 2>&1 | tee build.log
+        # we cannot use cpack here because it conflicts with chocolatey-pack
+        cmake --build . --config ${{matrix.buildType}} --target package
 
     - name: Scan build log
       if: always()
@@ -184,6 +201,12 @@ jobs:
       working-directory: ./build/test/${{matrix.buildType}}
       run: .\realm-tests.exe
 
+    - name: Upload packages
+      uses: actions/upload-artifact@v2-preview
+      with:
+        name: Windows
+        path: build/realm-core-*.tar.gz
+
   Android:
     strategy:
       matrix:
@@ -196,26 +219,19 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Create build folder
-      run: mkdir build
+    - uses: llvm/actions/install-ninja@master
 
     - name: Build
-      working-directory: ./build
       shell: bash
       run: |
-        cmake .. -D CMAKE_TOOLCHAIN_FILE="${ANDROID_SDK_ROOT}/ndk-bundle/build/cmake/android.toolchain.cmake" \
-                 -D CMAKE_INSTALL_PREFIX=install \
-                 -D CMAKE_BUILD_TYPE="${{matrix.buildType}}" \
-                 -D ANDROID_ABI="${{matrix.abi}}" \
-                 -D REALM_ENABLE_ENCRYPTION=1 \
-                 -D CPACK_SYSTEM_NAME="Android-${{matrix.abi}}"
-        cmake --build . --config ${{matrix.buildType}} --parallel 2>&1 | tee build.log
+        export ANDROID_NDK="$ANDROID_SDK_ROOT/ndk-bundle"
+        ./tools/cross_compile.sh -o android -a ${{matrix.abi}} -t ${{matrix.buildType}} 2>&1 | tee build.log
 
     - name: Scan build log
       if: always()
       uses: ./.github/actions/parse-tool-output
       with:
-        log-file-path: ./build/build.log
+        log-file-path: ./build.log
         tool: clang
 
     - name: Test
@@ -226,18 +242,24 @@ jobs:
         api-level: 21
         script: |
           adb shell 'rm -f /data/local/tmp/unit-test-report.xml'
-          adb push build/test/realm-tests /data/local/tmp
-          find build/test -type f -name "*.json" -maxdepth 1 -exec adb push {} /data/local/tmp \;
-          find build/test -type f -name "*.realm" -maxdepth 1 -exec adb push {} /data/local/tmp \;
-          find build/test -type f -name "*.txt" -maxdepth 1 -exec adb push {} /data/local/tmp \;
+          adb push build-android-${{matrix.abi}}-${{matrix.buildType}}/test/realm-tests /data/local/tmp
+          find build-android-${{matrix.abi}}-${{matrix.buildType}}/test -type f -name "*.json" -maxdepth 1 -exec adb push {} /data/local/tmp \;
+          find build-android-${{matrix.abi}}-${{matrix.buildType}}/test -type f -name "*.realm" -maxdepth 1 -exec adb push {} /data/local/tmp \;
+          find build-android-${{matrix.abi}}-${{matrix.buildType}}/test -type f -name "*.txt" -maxdepth 1 -exec adb push {} /data/local/tmp \;
           adb shell 'cd /data/local/tmp; UNITTEST_PROGRESS=1 GITHUB_ACTIONS=1 ./realm-tests'
           adb pull /data/local/tmp/unit-test-report.xml
+
+    - name: Upload packages
+      uses: actions/upload-artifact@v2-preview
+      with:
+        name: Android
+        path: build-android-${{matrix.abi}}-${{matrix.buildType}}/realm-core-*.tar.gz
 
   AppleDevice:
     strategy:
       matrix:
-        system: [iOS]
-        buildType: [Debug, Release]
+        system: [iOS, watchOS, tvOS]
+        buildType: [MinSizeDebug, Release]
     runs-on: macos-latest
 
     steps:
@@ -245,22 +267,20 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Create build folder
-      run: mkdir build
-
     - name: Build
-      working-directory: ./build
       shell: bash
       run: |
-        cmake .. -DCMAKE_TOOLCHAIN_FILE=../tools/cmake/${{matrix.system}}.toolchain.cmake \
-                 -DCMAKE_BUILD_TYPE=${{matrix.buildType}} \
-                 -GXcode
-        cmake --build . --config ${{matrix.buildType}} 2>&1 | tee build.log
-        cpack
+        ./tools/cross_compile.sh -t ${{matrix.buildType}} -o ${{matrix.system}} 2>&1 | tee build.log
 
     - name: Scan build log
       if: always()
       uses: ./.github/actions/parse-tool-output
       with:
-        log-file-path: ./build/build.log
+        log-file-path: ./build.log
         tool: clang
+
+    - name: Upload packages
+      uses: actions/upload-artifact@v2-preview
+      with:
+        name: ${{matrix.system}}
+        path: build-${{matrix.system}}-${{matrix.buildType}}/realm-core-*.tar.gz

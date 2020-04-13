@@ -303,9 +303,7 @@ target_include_directories(Storage
 
 target_link_libraries(Storage INTERFACE ${REALM_EXTRA_LIBS} ${CMAKE_THREAD_LIBS_INIT})
 
-if(ANDROID OR CMAKE_SYSTEM_NAME MATCHES "^Windows")
-    set(REALM_SKIP_SHARED_LIB ON)
-endif()
+option(REALM_SKIP_SHARED_LIB "Skip building as a shared library" ON)
 
 if(NOT REALM_SKIP_SHARED_LIB)
     add_library(StorageShared SHARED ${REALM_OBJECT_FILES} ${REALM_XCODE_DEPENDENCY})
