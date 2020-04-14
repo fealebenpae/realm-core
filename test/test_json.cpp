@@ -26,6 +26,7 @@
 #include <ostream>
 
 #include <realm.hpp>
+#include <realm/util/hex_dump.hpp>
 
 #include "util/misc.hpp"
 #include "util/jsmn.hpp"
@@ -180,10 +181,16 @@ bool json_test(std::string json, std::string expected_file, bool generate)
         if (test_file.fail())
             return false;
         getline(test_file, expected);
+
+        // trim carriage returns on windows
+        expected.erase(expected.find_last_not_of("\r") + 1);
+
         if (json != expected) {
             std::cout << json << std::endl;
+            std::cout << hex_dump(json.data(), json.size()) << std::endl;
             std::cout << expected << std::endl;
-            std::string path = "bad_" + file_name;
+            std::cout << hex_dump(expected.data(), expected.size()) << std::endl;
+            std::string path = file_name + ".bad";
             File out(path, File::mode_Write);
             out.write(json);
             std::cerr << "\n error result in '" << std::string(path) << "'\n";

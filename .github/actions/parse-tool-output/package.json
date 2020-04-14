@@ -1,0 +1,7 @@
+{
+    "name": "parse-tool-output",
+    "main": "index.js",
+    "dependencies": {
+        "@actions/core": "^1.2.3"
+    }
+}

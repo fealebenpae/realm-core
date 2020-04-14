@@ -30,12 +30,6 @@ macro(set_bitcode_attributes)
     set(CMAKE_XCODE_ATTRIBUTE_BITCODE_GENERATION_MODE_MinSizeRel "bitcode")
 endmacro()
 
-macro(fix_xcode_try_compile)
-    set(MACOSX_BUNDLE_GUI_IDENTIFIER io.realm)
-    set(CMAKE_MACOSX_BUNDLE YES)
-    set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED NO)
-endmacro()
-
 macro(set_target_xcode_attributes _target)
     set_target_properties(
             "${_target}" PROPERTIES

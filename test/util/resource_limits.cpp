@@ -29,6 +29,9 @@
 
 #if REALM_HAVE_POSIX_RLIMIT
 #include <sys/resource.h>
+#if REALM_PLATFORM_APPLE
+#include <sys/syslimits.h>
+#endif
 #endif
 
 using namespace realm;
@@ -69,7 +72,19 @@ void set_rlimit(Resource resource, long value, bool hard)
     if (status < 0)
         throw std::system_error(errno, std::system_category(), "getrlimit() failed");
     rlim_t value_2 = value < 0 ? RLIM_INFINITY : rlim_t(value);
-    (hard ? rlimit.rlim_max : rlimit.rlim_cur) = value_2;
+    if (hard) {
+        rlimit.rlim_max = value_2;
+    } else {
+#if REALM_PLATFORM_APPLE
+        if (value < 0) {
+            rlimit.rlim_cur = std::min<rlim_t>(OPEN_MAX, rlimit.rlim_max);
+        } else {
+            rlimit.rlim_cur = std::min<rlim_t>(OPEN_MAX, value);
+        };
+#else
+        rlimit.rlim_cur = value_2;
+#endif
+    }
     status = setrlimit(resource_2, &rlimit);
     if (status < 0)
         throw std::system_error(errno, std::system_category(), "setrlimit() failed");

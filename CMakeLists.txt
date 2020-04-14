@@ -1,26 +1,28 @@
-if(WIN32)
-    cmake_minimum_required(VERSION 3.12)
-else()
-    cmake_minimum_required(VERSION 3.15)
-endif()
+cmake_minimum_required(VERSION 3.15)
 
 set(CMAKE_BUILD_TYPE Debug CACHE STRING "")
-project(RealmCore)
+project(RealmCore
+        LANGUAGES C CXX
+)
 
 list(APPEND CMAKE_MODULE_PATH "${RealmCore_SOURCE_DIR}/tools/cmake")
 
 # Include general CMake modules
 include(GNUInstallDirs)
 include(CheckIncludeFiles)
-include(GetGitRevisionDescription)
 include(Utilities)
 include(SpecialtyBuilds)
 include(GetVersion)
 include(CheckCXXCompilerFlag)
 include(CheckCXXSourceRuns)
 
-# Get accurate git-describe version
-git_describe(REALM_VERSION)
+if(DEFINED ENV{GITHUB_ACTIONS})
+    set(REALM_VERSION "${CONFIG_VERSION}")
+else()
+    # Get accurate git-describe version
+    include(GetGitRevisionDescription)
+    git_describe(REALM_VERSION)
+endif()
 
 # Project-wide build flags
 set(CMAKE_CXX_STANDARD 14)
@@ -116,7 +118,6 @@ set(CMAKE_POSITION_INDEPENDENT_CODE true)
 
 if(CMAKE_SYSTEM_NAME MATCHES "^Windows")
     add_definitions(
-        /D_SCL_SECURE_NO_WARNINGS
         /DWIN32_LEAN_AND_MEAN
         /DUNICODE
         /D_UNICODE
@@ -146,17 +147,16 @@ if(MSVC)
         set(CMAKE_EXE_LINKER_FLAGS_DEBUG     "${CMAKE_EXE_LINKER_FLAGS_DEBUG} /INCREMENTAL:NO /OPT:NOREF /OPT:NOICF")
         set(CMAKE_SHARED_LINKER_FLAGS_DEBUG  "${CMAKE_SHARED_LINKER_FLAGS_DEBUG} /INCREMENTAL:NO /OPT:NOREF /OPT:NOICF")
     else()
+        if(CMAKE_GENERATOR_PLATFORM MATCHES "^ARM")
+            add_compile_options(/EHsc)
+        endif()
+
         # Statically link the run-time library
-        # TODO: replace with CMAKE_MSVC_RUNTIME_LIBRARY once we switch to CMake 3.15 as the minimum
-        # https://docs.microsoft.com/bg-bg/cpp/build/reference/md-mt-ld-use-run-time-library
-        # https://cmake.org/Wiki/CMake_FAQ#How_can_I_build_my_MSVC_application_with_a_static_runtime.3F
+        set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+
         foreach(flag_var
             CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
             CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
-            if(${flag_var} MATCHES "/MD")
-                string(REGEX REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
-            endif()
-
             # Disable runtime stack bound checks, because these slow down unit tests
             # disproportionately.
             if(${flag_var} MATCHES "/RTC")

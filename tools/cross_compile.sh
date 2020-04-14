@@ -6,7 +6,7 @@ set -e
 SCRIPT=$(basename "${BASH_SOURCE[0]}")
 
 function usage {
-    echo "Usage: ${SCRIPT} -t <build_type> -o <target_os> -v <version> [-a <android_abi>] [-f <cmake_flags>]"
+    echo "Usage: ${SCRIPT} -t <build_type> -o <target_os> [-a <android_abi>] [-f <cmake_flags>]"
     echo ""
     echo "Arguments:"
     echo "   build_type=<Release|Debug|MinSizeDebug>"
@@ -19,7 +19,7 @@ function usage {
 while getopts ":o:a:t:v:f:" opt; do
     case "${opt}" in
         o)
-            OS=${OPTARG}
+            OS=$(echo "${OPTARG}" | tr "[:upper:]" "[:lower:]")
             [ "${OS}" == "android" ] ||
             [ "${OS}" == "ios" ] ||
             [ "${OS}" == "watchos" ] ||
@@ -38,7 +38,6 @@ while getopts ":o:a:t:v:f:" opt; do
             [ "${BUILD_TYPE}" == "MinSizeDebug" ] ||
             [ "${BUILD_TYPE}" == "Release" ] || usage
             ;;
-        v) VERSION=${OPTARG};;
         f) CMAKE_FLAGS=${OPTARG};;
         *) usage;;
     esac
@@ -66,7 +65,6 @@ if [ "${OS}" == "android" ]; then
           -D CMAKE_BUILD_TYPE="${BUILD_TYPE}" \
           -D ANDROID_ABI="${ARCH}" \
           -D REALM_ENABLE_ENCRYPTION=1 \
-          -D REALM_VERSION="${VERSION}" \
           -D CPACK_SYSTEM_NAME="Android-${ARCH}" \
           -D CMAKE_MAKE_PROGRAM=ninja \
           -G Ninja \
@@ -88,7 +86,6 @@ else
               -D CMAKE_INSTALL_PREFIX="$(pwd)/install" \
               -D CMAKE_BUILD_TYPE="${BUILD_TYPE}" \
               -D REALM_NO_TESTS=1 \
-              -D REALM_VERSION="${VERSION}" \
               -D CPACK_SYSTEM_NAME="${SDK}os" \
               ${CMAKE_FLAGS} \
               -G Xcode ..
